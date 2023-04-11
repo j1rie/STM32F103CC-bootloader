@@ -25,7 +25,6 @@
 #include <libopencm3/usb/dfu.h>
 #include <libopencm3/usb/dwc/otg_fs.h>
 #include <libopencm3/usb/dwc/otg_common.h>
-#include "config.h"
 #include <libopencm3/stm32/tools.h>
 #include <libopencm3/stm32/st_usbfs.h>
 
@@ -280,7 +279,7 @@ static void RCC_DeInit(void)
 	SET_REG(&RCC_CR, GET_REG(&RCC_CR)     & 0xFFFBFFFF);
 
   /* Reset PLLSRC, PLLXTPRE, PLLMUL and USBPRE/OTGFSPRE bits */
-	SET_REG(&RCC_CR, GET_REG(&RCC_CR)     & 0xFF80FFFF); // FF80FFFF ?! war 0xFFFBFFFF ergibt dieselbe Firmware?!
+	SET_REG(&RCC_CR, GET_REG(&RCC_CR)     & 0xFF80FFFF);
 
   /* Disable all interrupts and clear pending bits  */
 	SET_REG(&RCC_CIR, 0x009F0000);
@@ -294,14 +293,12 @@ int main(void)
 	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
 						GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
 
-#ifdef	NO_USB_DISC_HW
 	rcc_periph_clock_enable(RCC_GPIOA);
 	gpio_clear(GPIOA, GPIO12);
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
 			GPIO_CNF_OUTPUT_OPENDRAIN, GPIO12);
 	volatile uint32_t delay;
 	for(delay=800000;delay;delay--);
-#endif
 
 	usbd_device *usbd_dev = usbd_init(&st_usbfs_v1_usb_driver, &dev, &config,
 		usb_strings, 3, usbd_control_buffer, sizeof(usbd_control_buffer));
@@ -311,22 +308,16 @@ int main(void)
 			USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 			usbdfu_control_request);
 
-#if !defined(NO_USB_DISC_HW) && !defined(NO_USB_DISC)
-	rcc_periph_clock_enable(USB_DISC_RCC_GPIO);
-	gpio_clear(USB_DISC_BANK, USB_DISC);
-	gpio_set_mode(USB_DISC_BANK, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_OPENDRAIN, USB_DISC);
-#endif
-
 	bool no_user_jump = !checkUserCode(APP_ADDRESS);
   
 	int delay_count = 0;
 	
+#define DELAY 600000 // wait to be catched by upgrade program // 400000 was too little
 	while ((delay_count++ < 1) || no_user_jump) {
 		gpio_set(GPIOC, GPIO13);
-		for (int i=0; i<400000; i++) {
+		for (int i=0; i<DELAY; i++) {
 			usbd_poll(usbd_dev);
-			if(i==200000)
+			if(i== (DELAY/2))
 				gpio_clear(GPIOC, GPIO13);
 			if(dfuDnloadStarted()) {
 				gpio_clear(GPIOC, GPIO13);
@@ -334,20 +325,17 @@ int main(void)
 					usbd_poll(usbd_dev);
 				}
 				// wait for last status request TODO test this!
-				/*while((GET_REG(&OTG_FS_DIEPCTL0) & OTG_DIEPCTL0_NAKSTS) != OTG_DIEPCTL0_NAKSTS); // testen!
-				break;*/
-				if (dfuDnloadDone())
+				while((GET_REG(&OTG_FS_DIEPCTL0) & OTG_DIEPCTL0_NAKSTS) != OTG_DIEPCTL0_NAKSTS);
+				break;
+				/*if (dfuDnloadDone())
 					for (int k=0; k<30; k++) { usbd_poll(usbd_dev); }
 				else
 					for (int k=0; k<500; k++) { usbd_poll(usbd_dev); }
-				break;
+				break;*/
 			}
 		}
 	}
 
-#if !defined(NO_USB_DISC_HW) && !defined(NO_USB_DISC)
-	gpio_set(USB_DISC_BANK, USB_DISC); // disconnect USB from host
-#endif
 	RCC_DeInit();
 	jump_to_app_if_valid();
 }

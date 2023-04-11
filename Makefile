@@ -23,31 +23,3 @@ CSTD = -std=gnu99
 LDSCRIPT = F103CC.ld
 
 include target.mk
-
-ifeq ($(Platform), Blue)
-DEFS += -DBlue
-endif
-ifeq ($(Platform), Blue_noHW)
-DEFS += -DBlue_noHW
-endif
-ifeq ($(Platform), Red)
-DEFS += -DRed
-endif
-ifeq ($(Platform), Red_noHW)
-DEFS += -DRed_noHW
-endif
-ifeq ($(Platform), Dev)
-DEFS += -DDev
-endif
-ifeq ($(Platform), blueDev)
-DEFS += -DblueDev
-endif
-ifeq ($(Platform), blackDev)
-DEFS += -DblackDev
-endif
-ifeq ($(Platform), MapleMini)
-DEFS += -DMapleMini
-endif
-ifeq ($(Platform), MapleMini_2k)
-DEFS += -DMapleMini_2k
-endif
