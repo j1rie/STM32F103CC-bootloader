@@ -30,8 +30,6 @@
 
 #define APP_ADDRESS	0x08003000
 #define MAX_ADDRESS	0x08040000
-
-/* We need a special large control buffer for this device: */
 uint8_t usbd_control_buffer[2048];
 
 static enum dfu_state usbdfu_state = STATE_DFU_IDLE;
@@ -324,14 +322,9 @@ int main(void)
 				while(!dfuDnloadDone() && !dfuUploadDone()) {
 					usbd_poll(usbd_dev);
 				}
-				// wait for last status request TODO test this!
+				// wait for last status request
 				while((GET_REG(&OTG_FS_DIEPCTL0) & OTG_DIEPCTL0_NAKSTS) != OTG_DIEPCTL0_NAKSTS);
 				break;
-				/*if (dfuDnloadDone())
-					for (int k=0; k<30; k++) { usbd_poll(usbd_dev); }
-				else
-					for (int k=0; k<500; k++) { usbd_poll(usbd_dev); }
-				break;*/
 			}
 		}
 	}
